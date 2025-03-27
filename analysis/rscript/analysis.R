@@ -21,7 +21,7 @@ source("helpers.R")
 
 # 1. Data ----
 # sentence datafram with surprisal
-surprisal_files <- list.files(path="../../data", pattern="sentences_surprisal_alt*",
+surprisal_files <- list.files(path="../../data/embedded_five", pattern="sentences_surprisal_alt*",
                               full.names=TRUE, recursive=FALSE)
 
 surprisal5.df <- lapply(surprisal_files,

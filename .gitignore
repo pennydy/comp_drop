@@ -2,4 +2,5 @@
 
 .Rproj.user
 
-
+# raw data files
+raw_data/*
