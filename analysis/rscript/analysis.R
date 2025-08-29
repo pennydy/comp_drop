@@ -66,7 +66,7 @@ that_surprisal7.df <- surprisal7.df %>%
 
 all_counts <- length(that_surprisal7.df$comp_type)
 that_count <- sum(that_surprisal7.df$comp_type)
-that_proportion <- that_count / all_counts
+that_proportion <- that_count / all_counts #.666
 
 # obtain the frequency count from the dataframe
 frequency.df_alt <- surprisal7.df %>%
@@ -154,7 +154,10 @@ ggplot(that_sentence_freq, aes(x = as.factor(comp_type), y = local_verb)) +
 # leave "matrix_verb_to_cc" out 
 cols <- c("local_embedded_n", "local_verb", "frequency_verb", "frequency_cc","expected_embedded_n", "expected_verb")
 corr_matrix <- cor(that_sentence_freq[, cols], use = "complete.obs")
+
+pdf(file="../graphs/correlation_plot.pdf", width=5,height=5)
 corrplot(corr_matrix, method = "color", addCoef.col = "black", tl.cex = 0.8, number.cex = 0.7)
+dev.off()
 
 # 4. Logistic Regression
 # that_sentence_freq$semantic_type <- as.factor(that_sentence_freq$semantic_type)

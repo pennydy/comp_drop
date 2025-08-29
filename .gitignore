@@ -4,3 +4,7 @@
 
 # raw data files
 raw_data/*
+data/dolma_*
+
+# dolma analysis file
+analysis/rscript/analysis_dolma.R
