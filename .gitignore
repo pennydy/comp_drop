@@ -2,9 +2,16 @@
 
 .Rproj.user
 
+# writing
+writing/*
+
+# analysis
+analysis/rscript/*.rds
+analysis/graphs/*
+
 # raw data files
 raw_data/*
 data/dolma_*
+data/TEST_*
+data/word_count.csv
 
-# dolma analysis file
-analysis/rscript/analysis_dolma.R

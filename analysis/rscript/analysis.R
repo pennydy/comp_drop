@@ -37,7 +37,7 @@ that_surprisal5.df <- surprisal5.df %>%
   select(-c(sentence, pseudo_that)) %>%
   filter(comp_type %in% c("that", "none")) %>%
   filter(matrix_verb_to_cc >= 0) %>% # all <0 ones are other comp types (e.g., object rc)
-  mutate(comp_type = if_else(comp_type == "that", 1, 0),
+  mutate(comp_type_num = if_else(comp_type == "that", 1, 0),
          item = row_number()) %>%
   relocate(item)
 
@@ -60,16 +60,41 @@ that_surprisal7.df <- surprisal7.df %>%
   select(-c(sentence, pseudo_that)) %>% 
   filter(comp_type %in% c("that", "none")) %>% 
   filter(matrix_verb_to_cc >= 0) %>% # all <0 ones are other comp types (e.g., object rc)
-  mutate(comp_type = if_else(comp_type == "that", 1, 0),
+  mutate(comp_type_num = if_else(comp_type == "that", 1, 0),
          item = row_number()) %>% 
   relocate(item)
 
-all_counts <- length(that_surprisal7.df$comp_type)
-that_count <- sum(that_surprisal7.df$comp_type)
+all_counts <- length(that_surprisal7.df$comp_type_num)
+that_count <- sum(that_surprisal7.df$comp_type_num)
 that_proportion <- that_count / all_counts #.666
 
+# plotting top 20 
+that_surprisal7_summary <- that_surprisal7.df %>% 
+  group_by(verb) %>% 
+  summarize(ccomp = n(),
+            that = sum(comp_type_num),
+            omitted = ccomp - that) %>% 
+  ungroup()
+  
+ccomp_verb_20 <- that_surprisal7_summary %>% 
+  arrange(desc(ccomp)) %>% 
+  head(n=20) %>% 
+  pivot_longer(cols=c("that","omitted"),
+               names_to="type",
+               values_to="count")
+
+ggplot(ccomp_verb_20,
+       aes(x=reorder(verb, ccomp),
+           y=count,
+           fill=type))+
+  geom_col()+
+  # scale_y_log10()+ # log-scale
+  coord_flip()+
+  labs(x = "Count", 
+       y = "Verb")
+
 # obtain the frequency count from the dataframe
-frequency.df_alt <- surprisal7.df %>%
+frequency.df_alt <- surprisal5.df %>%
   group_by(verb) %>%
   summarize(cc = n()) # combination of that and "none"
 
@@ -122,7 +147,8 @@ that_sentence_freq <- that_sentence_freq %>%
          local_embedded_n = as.numeric(scale(local_embedded_n, center=TRUE, scale=TRUE)),
          local_verb = as.numeric(scale(local_verb, center=TRUE, scale=TRUE)),
          expected_verb = as.numeric(scale(expected_verb, center=TRUE, scale=TRUE)),
-         expected_embedded_n = as.numeric(scale(expected_embedded_n, center=TRUE, scale=TRUE)))
+         expected_embedded_n = as.numeric(scale(expected_embedded_n, center=TRUE, scale=TRUE)),
+         comp_type=fct_relevel(as.factor(comp_type),"none"))
 # write.csv(that_sentence_freq,"~/Downloads/that_sentences_freq_scaled.csv", row.names = TRUE)
 
 
@@ -130,10 +156,10 @@ that_sentence_freq <- that_sentence_freq %>%
 that_sentence_freq <- that_sentence_freq %>%
   filter(matrix_verb_to_cc == 0)
 
-write.csv(that_sentence_freq,"~/Downloads/that_sentences_freq_n7.csv", row.names = TRUE)
+# write.csv(that_sentence_freq,"~/Downloads/that_sentences_freq_n7.csv", row.names = TRUE)
 
-sum(that_sentence_freq$comp_type)
-sum(that_sentence_freq$comp_type)/length(that_sentence_freq$comp_type)
+sum(that_sentence_freq$comp_type_num)
+sum(that_sentence_freq$comp_type_num)/length(that_sentence_freq$comp_type_num)
 
 
 # 1. plot embedded_n_sum by comp_type
@@ -161,6 +187,7 @@ dev.off()
 
 # 4. Logistic Regression
 # that_sentence_freq$semantic_type <- as.factor(that_sentence_freq$semantic_type)
+levels(that_sentence_freq$comp_type)
 model_random <- glmer(comp_type ~ local_embedded_n + local_verb + frequency_verb + frequency_cc + expected_embedded_n + expected_verb + (1|verb), 
              data = that_sentence_freq, family = binomial())
 summary(model_random)
