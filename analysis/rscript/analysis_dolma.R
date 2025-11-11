@@ -28,8 +28,8 @@ df.dolma <- lapply(dolma_files,
                      header = TRUE) %>%
   bind_rows()
 
-# df.dolma <- read.csv("../../data/dolma_v1_6-sample_test_processed.csv",header=TRUE)
-write.csv(head(df.dolma_ccomp_full, n = 300), "../../data/TEST_dolma_v1_6-sample_surprisal_full.csv")
+# df.dolma <- read.csv("../../data/dolma_v1_6-sample_1_processed_1_noquote.csv",header=TRUE)
+# write.csv(head(df.dolma, n = 500), "../../data/TEST_dolma_v1_6-sample_1.csv")
 
 # word count
 total_words = 7778838
