@@ -29,7 +29,7 @@ df.dolma <- lapply(dolma_files,
   bind_rows()
 
 # df.dolma <- read.csv("../../data/dolma_v1_6-sample_test_processed.csv",header=TRUE)
-# write.csv(head(df.dolma, n = 300), "../../data/TEST_dolma_v1_6-sample_surprisal_all_verb.csv")
+write.csv(head(df.dolma_ccomp_full, n = 300), "../../data/TEST_dolma_v1_6-sample_surprisal_full.csv")
 
 # word count
 total_words = 7778838
@@ -131,38 +131,35 @@ ggplot(dolma_ccomp_verb_least_20,
        y = "Count")
 
 # clean up the data for analysis
-df.dolma_entropy <- df.dolma_freq %>% 
+df.dolma_freq <- df.dolma_freq %>% 
   filter(!is.na(verb_sum) & !is.na(cc_with_that_sum)) %>% 
-  # mutate(local_embedded_n = cc_no_that_sum - cc_with_that_sum) %>% 
   rename(local_verb = "verb_sum",
-         local_embedded_n = "cc_no_that_sum",
-         entropy_verb = "verb_entropy",
-         entropy_embedded_n = "cc_n_entropy")
-  # mutate(local_onset = local_onset / cc_onset) %>% 
-  # na.omit(local_onset)
+         local_embedded_n = "cc_no_that_sum")
 
 # calculate the expected informativity
-df.dolma_expected <- df.dolma_entropy %>%
+df.dolma_expected <- df.dolma_freq %>%
   group_by(matrix_predicate_lemma) %>%
   summarize(expected_verb = mean(local_verb, na.rm=TRUE), # expected info of the verb
             expected_embedded_n = mean(local_embedded_n, na.rm=TRUE)) %>% 
   ungroup()
             # expected_onset = mean(local_onset, na.rm=TRUE)) # expected info of first n words of the embedded clause
 
-df.dolma_ccomp_full <- left_join(df.dolma_entropy, df.dolma_summary, by="matrix_predicate_lemma") %>%
+df.dolma_ccomp_full <- left_join(df.dolma_freq, df.dolma_summary, by="matrix_predicate_lemma") %>%
   left_join(., df.dolma_expected, by="matrix_predicate_lemma")
 
+length(df.dolma_ccomp_full$matrix_predicate_lemma) # 79608
+
 df.dolma_ccomp_full <- df.dolma_ccomp_full %>% 
-  filter(matrix_predicate_to_cc >= 0) %>% 
+  filter(matrix_predicate_to_cc >= 0) %>% # this removes nothing: no matrix_predicate_to_cc<0 cases after remove matrix_predicate_position<=0
   mutate(embedded_subject_type = case_when(tolower(embedded_subject_head) == "i" ~ "I",
-                                           tolower(embedded_subject_head) == "it" ~ "it",
-                                           tolower(embedded_subject_head) %in% c("he", "she", "they", "you") ~ "pronoun", 
+                                           tolower(embedded_subject_head) == "you" ~ "you",
+                                           tolower(embedded_subject_head) %in% c("he", "she", "they", "it") ~ "pronoun", 
                                            TRUE ~ "NP"),
          embedded_length = embedded_clause_minus_one + 1,
          matrix_length = sapply(strsplit(matrix_span_verb, " "), length) + matrix_predicate_to_cc)
 
 df.dolma_ccomp_that <- df.dolma_ccomp_full %>% 
-  select(c("complementizer", "matrix_predicate_lemma", "matrix_predicate_id", "matrix_predicate_position", "matrix_predicate_to_cc", "matrix_subject_type", "cc_onset", "cc_remainder", "frequency_verb", "frequency_cc", "frequency_embedded_n", "local_verb",  "local_embedded_n", "expected_verb",  "expected_embedded_n", "doc_id", "entropy_verb","entropy_embedded_n", "embedded_subject_type", "embedded_length", "matrix_length", "verb_count"))
+  select(c("complementizer", "matrix_predicate_lemma", "matrix_predicate_id", "matrix_predicate_position", "matrix_predicate_to_cc", "matrix_subject_type", "cc_onset", "cc_remainder", "frequency_verb", "frequency_cc", "frequency_embedded_n", "local_verb",  "local_embedded_n", "expected_verb",  "expected_embedded_n", "doc_id", "embedded_subject_type", "embedded_length", "matrix_length", "verb_count"))
 
 df.dolma_ccomp_that <- df.dolma_ccomp_that %>% 
   filter(!is.na(matrix_subject_type) & matrix_subject_type != "") %>%
@@ -186,8 +183,6 @@ df.dolma_ccomp_that <- df.dolma_ccomp_that %>%
          embedded_subject_type = as.factor(embedded_subject_type),
          matrix_length = as.numeric(scale(matrix_length, center=TRUE, scale=TRUE)),
          verb_count = as.numeric(scale(verb_count, center=TRUE, scale=TRUE)),
-         entropy_verb = as.numeric(scale(entropy_verb, center=TRUE, scale=TRUE)),
-         entropy_embedded_n = as.numeric(scale(entropy_embedded_n, center=TRUE, scale=TRUE)),
          complementizer = fct_relevel(as.factor(complementizer),"that"))
 
 df.dolma_ccomp_that <- df.dolma_ccomp_that %>%
@@ -250,7 +245,6 @@ corrplot(corr_matrix, method = "color", addCoef.col = "black", tl.cex = 0.8, num
 cor(df.dolma_ccomp_that$expected_embedded_n, df.dolma_ccomp_that$local_embedded_n, method = "pearson")
 cor(df.dolma_ccomp_that$frequency_verb, df.dolma_ccomp_that$local_verb, method = "pearson")
 # cor(df.dolma_ccomp_that$verb_count, df.dolma_ccomp_that$local_verb, method = "pearson")
-cor(df.dolma_ccomp_that$local_embedded_n, df.dolma_ccomp_that$entropy_embedded_n, method = "pearson") # r = -0.02 in rabinovich
 # cor(df.dolma_ccomp_that$local_onset, df.dolma_ccomp_that$cc_onset, method = "pearson")
 
 # 4. Residualize highly correlated variables
@@ -258,10 +252,6 @@ cor(df.dolma_ccomp_that$local_embedded_n, df.dolma_ccomp_that$entropy_embedded_n
 resid_model_verb_frequency_expected <- lm(expected_verb ~ frequency_verb, data = df.dolma_ccomp_that)
 summary(resid_model_verb_frequency_expected)
 df.dolma_ccomp_that$expected_verb_resid <- resid(resid_model_verb_frequency_expected)
-
-resid_model_entropy_verb_embedded <- lm(entropy_embedded_n ~ entropy_verb, data = df.dolma_ccomp_that)
-summary(resid_model_entropy_verb_embedded)
-df.dolma_ccomp_that$entropy_verb_resid <- resid(resid_model_entropy_verb_embedded)
 
 resid_model_local_embedded_n <- lm(local_embedded_n ~ matrix_predicate_to_cc_scale, data = df.dolma_ccomp_that)
 summary(resid_model_local_embedded_n)
@@ -279,52 +269,39 @@ df.dolma_ccomp_that$item <- as.factor(df.dolma_ccomp_that$item)
 levels(df.dolma_ccomp_that$complementizer)
 
 # grammaticalization
-model_grammatical <- glm(complementizer ~ cc_onset + cc_remainder + matrix_predicate_position + frequency_verb + local_embedded_n + expected_verb_resid + frequency_cc,
+model_grammatical <- glm(complementizer ~ matrix_predicate_position + frequency_verb + frequency_cc + local_embedded_n_resid + expected_verb_resid,
                          data = df.dolma_ccomp_that,
                          family = binomial())
 summary(model_grammatical)
 
-model_grammatical_random <- glmer(complementizer ~ cc_remainder + cc_onset + matrix_predicate_position + frequency_verb + local_embedded_n + expected_verb_resid + frequency_cc + (1|matrix_predicate_lemma),
+# Check range and overlap by outcome
+boxplot(matrix_predicate_to_cc_scale ~ complementizer, data = df.dolma_ccomp_that)
+tapply(df.dolma_ccomp_that$matrix_predicate_to_cc_scale,
+       df.dolma_ccomp_that$complementizer, summary)
+
+# Examine extreme predicted probabilities
+fitted_vals <- fitted(model_grammatical)
+range(fitted_vals)
+table(cut(fitted_vals, breaks = c(0, 0.001, 0.01, 0.99, 0.999, 1)))
+
+with(df.dolma_ccomp_that, table(complementizer, matrix_predicate_to_cc_scale > 5))
+
+
+model_grammatical_random <- glmer(complementizer ~ matrix_predicate_position + matrix_predicate_to_cc_scale + frequency_verb + frequency_cc + local_embedded_n_resid + expected_verb_resid +  (1|matrix_predicate_lemma),
                          data = df.dolma_ccomp_that,
-                         family = binomial())
+                         family = binomial(),
+                         control = glmerControl(optimizer = "bobyqa",
+                                                optCtrl   = list(maxfun = 2e5)))
 summary(model_grammatical_random)
 
-# analysis from rabinovich 
-model_rabinovich <- glm(complementizer ~ cc_remainder + cc_onset + matrix_predicate_position + frequency_verb + local_embedded_n + entropy_embedded_n,
-                   data = df.dolma_ccomp_that %>% 
-                     filter(matrix_predicate_to_cc == 0),
-                   family = binomial())
-summary(model_rabinovich)
-
-# rabinovich + random verb effect
-model_rabinovich_random <- glmer(complementizer ~ cc_remainder + cc_onset + matrix_length + frequency_verb + local_embedded_n + entropy_embedded_n + (1|matrix_predicate_lemma),
-                   data = df.dolma_ccomp_that %>% 
-                     filter(matrix_predicate_to_cc == 0),
-                   family = binomial(),
-                   control = glmerControl(optimizer = "bobyqa"))
-summary(model_rabinovich_random)
-
-# rabinovich + additional predictors (frequency_verb instead of verb_count, entropy_verb_resid instead of entropy_verb)
-model_rabinovich_full <- glm(complementizer ~ matrix_subject_type + cc_onset + cc_remainder + matrix_length + frequency_verb + local_embedded_n + entropy_embedded_n + cc_onset + frequency_cc + local_verb + entropy_verb_resid + matrix_predicate_to_cc_scale,
-                                 data = df.dolma_ccomp_that,
-                                 family = binomial())
-summary(model_rabinovich_full)
-
-# rabinovich + additional predictors + random verb effect (frequency_verb instead of verb_count)
-model_rabinovich_full_random <- glmer(complementizer ~ matrix_subject_type + matrix_length + cc_onset + cc_remainder + frequency_verb + local_embedded_n + entropy_embedded_n + matrix_predicate_to_cc_scale + frequency_cc + local_verb + entropy_verb_resid + (1|matrix_predicate_lemma),
-                        data = df.dolma_ccomp_that,
-                        family = binomial(),
-                        control = glmerControl(optimizer = "bobyqa"))
-summary(model_rabinovich_full_random)
-
-# expected surp + additional predictors (frequency_verb instead of verb_count, matrix_predicate_id instead of matrix length)
+# expected surp + additional predictors (frequency_verb instead of verb_count)
 # make sure to SCALE (matrix_predicate_to_cc_scale)
-model_expected_full <- glm(complementizer ~ matrix_subject_type + cc_remainder + cc_onset + matrix_predicate_position + matrix_predicate_to_cc_scale + frequency_verb + frequency_cc + frequency_embedded_n + local_verb + local_embedded_n +  expected_verb_resid + expected_embedded_n,
+model_expected_full <- glm(complementizer ~ matrix_subject_type + cc_remainder + cc_onset + matrix_predicate_position + matrix_predicate_to_cc_scale + frequency_verb + frequency_cc + frequency_embedded_n + local_verb + local_embedded_n_resid + expected_verb_resid + expected_embedded_n,
                                     data = df.dolma_ccomp_that,
                                     family = binomial())
 summary(model_expected_full)
 
-# expected surp + additional predictors + random verb effect (frequency verb instead of verb count, matrix_predicate_id instead of matrix length) 
+# expected surp + additional predictors + random verb effect (frequency verb instead of verb count) 
 # make sure to SCALE (matrix_predicate_to_cc_scale)
 model_expected_full_random <- glmer(complementizer ~ matrix_subject_type + cc_remainder + cc_onset + matrix_predicate_position + matrix_predicate_to_cc_scale + verb_count + frequency_verb + frequency_cc + frequency_embedded_n + local_verb + local_embedded_n_resid +  expected_verb_resid + expected_embedded_n + (1|matrix_predicate_lemma),
                                  data = df.dolma_ccomp_that,
