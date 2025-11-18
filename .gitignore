@@ -3,7 +3,6 @@
 .Rproj.user
 
 # writing
-writing/*
 
 # analysis
 analysis/rscript/*.rds
