@@ -9,7 +9,5 @@ analysis/rscript/*.rds
 
 # raw data files
 raw_data/*
-data/dolma_*
 data/TEST_*
-data/dolma_v1_6-sample_1_processed_1_noquote.csv
-data/dolma_v1_6-sample_1_processed_2_noquote.csv
+data/dolma_v1_6-sample_1_processed_*
